@@ -56,18 +56,18 @@
   <h1>Buy vs Rent Analyzer</h1>
 
   <div id="form-section">
-    <div class="input-group"><label>Flat Cost (₹)</label><input type="number" id="flatCost" value="7000000"></div>
-    <div class="input-group"><label>Loan Amount (₹)</label><input type="number" id="loanAmount" value="5000000"></div>
-    <div class="input-group"><label>Loan Tenure (Years)</label><input type="number" id="tenure" value="10"></div>
-    <div class="input-group"><label>Interest Rate (% per annum)</label><input type="number" id="interestRate" value="8"></div>
+    <div class="input-group"><label>Flat Cost (₹)</label><input type="number" id="flatCost" value="12000000"></div>
+    <div class="input-group"><label>Loan Amount (₹)</label><input type="number" id="loanAmount" value="10000000"></div>
+    <div class="input-group"><label>Loan Tenure (Years)</label><input type="number" id="tenure" value="20"></div>
+    <div class="input-group"><label>Interest Rate (% per annum)</label><input type="number" id="interestRate" value="8.5"></div>
     <div class="input-group"><label>Monthly EMI (₹)</label><input type="text" id="emi" readonly></div>
     <div class="input-group"><label>Total Interest Paid (₹)</label><input type="text" id="interest" readonly></div>
     <div class="input-group"><label>Future Flat Value CAGR (%)</label><input type="number" id="flatCAGR" value="6"></div>
-    <div class="input-group"><label>Rent Year 1 (₹)</label><input type="number" id="initialRent" value="15000"></div>
-    <div class="input-group"><label>Rent Increase (% per year)</label><input type="number" id="rentIncrease" value="5"></div>
+    <div class="input-group"><label>Rent Year 1 (₹)</label><input type="number" id="initialRent" value="50000"></div>
+    <div class="input-group"><label>Rent Increase (% per year)</label><input type="number" id="rentIncrease" value="10"></div>
     <div class="input-group"><label>SIP per Month (₹)</label><input type="number" id="sip" readonly></div>
     <div class="input-group"><label>Lump Sum Investment (₹)</label><input type="number" id="lumpsum" readonly></div>
-    <div class="input-group"><label>Expected CAGR (%)</label><input type="number" id="cagr" value="15"></div>
+    <div class="input-group"><label>Expected CAGR (%)</label><input type="number" id="cagr" value="12"></div>
     <div class="input-group"><label>Step-up SIP (% yearly increase)</label><input type="number" id="stepupSIPPercent" value="0"></div>
     <div class="input-group"><label>Inflation Rate (% per annum)</label><input type="number" id="inflationRate" value="5"></div>
     <button onclick="runAnalysis()">Analyze</button>
@@ -175,9 +175,20 @@
       const netRentGain = totalInvestment - rentTotal;
 
       const safeRent = (flatCost * 0.025) / 12;
-      const rentComparisonMsg = initialRent > safeRent
-        ? `<span style="color: green;"><b>Rent is high</b> relative to property value. Buying may be a good option.</span>`
-        : `<span style="color: orange;"><b>Rent is affordable</b> relative to flat price. Renting may be smarter unless long-term stay is certain.</span>`;
+      const rentYield = (initialRent * 12 / flatCost) * 100;
+
+      let rentYieldMsg = '';
+      if (rentYield < 2.5) {
+        rentYieldMsg = `<b>Rent Yield:</b> ${rentYield.toFixed(2)}%. Renting is likely better.`;
+      } else if (rentYield > 3.5) {
+        rentYieldMsg = `<b>Rent Yield:</b> ${rentYield.toFixed(2)}%. Buying is worth considering.`;
+      } else {
+        rentYieldMsg = `<b>Rent Yield:</b> ${rentYield.toFixed(2)}%. Neutral zone. Evaluate based on personal preference.`;
+      }
+
+      const finalVerdict = netRentGain > netBuyGain
+        ? `<h4 style="color: green;"><b>Final Verdict:</b> Renting + Investing is financially better.</h4>`
+        : `<h4 style="color: blue;"><b>Final Verdict:</b> Buying is financially better.</h4>`;
 
       document.getElementById("result").innerHTML = `
         <h3>Summary (Inflation Adjusted)</h3>
@@ -190,10 +201,8 @@
         <p><b>Net Gain (Rent + Invest):</b> ₹${Math.round(netRentGain).toLocaleString()}</p>
         <hr>
         <p><b>Safe Rent Threshold (2.5% Yield):</b> ₹${Math.round(safeRent).toLocaleString()} / month</p>
-        <p>${rentComparisonMsg}</p>
-        <h4 style="color: ${netRentGain > netBuyGain ? 'green' : 'blue'}">
-          ${netRentGain > netBuyGain ? 'Renting + Investing is financially better.' : 'Buying is financially better.'}
-        </h4>
+        <p>${rentYieldMsg}</p>
+        ${finalVerdict}
       `;
 
       new Chart(document.getElementById("comparisonChart"), {
