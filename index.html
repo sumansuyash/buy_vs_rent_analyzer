@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Buy vs Rent Analyzer</title>
+  <title>Buy vs Rent Analyzer (Inflation Adjusted)</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body {
@@ -50,69 +50,26 @@
       border-radius: 8px;
       box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
     }
-    .toggle-section {
-      margin-top: 10px;
-      color: #007bff;
-      cursor: pointer;
-    }
   </style>
 </head>
 <body>
   <h1>Buy vs Rent Analyzer</h1>
 
   <div id="form-section">
-    <div class="input-group">
-      <label>Flat Cost (₹)</label>
-      <input type="number" id="flatCost" value="7000000">
-    </div>
-    <div class="input-group">
-      <label>Loan Amount (₹)</label>
-      <input type="number" id="loanAmount" value="5000000">
-    </div>
-    <div class="input-group">
-      <label>Loan Tenure (Years)</label>
-      <input type="number" id="tenure" value="10">
-    </div>
-    <div class="input-group">
-      <label>Interest Rate (% per annum)</label>
-      <input type="number" id="interestRate" value="8">
-    </div>
-    <div class="input-group">
-      <label>Monthly EMI (₹)</label>
-      <input type="text" id="emi" readonly>
-    </div>
-    <div class="input-group">
-      <label>Total Interest Paid (₹)</label>
-      <input type="text" id="interest" readonly>
-    </div>
-    <div class="input-group">
-      <label>Future Flat Value CAGR (%)</label>
-      <input type="number" id="flatCAGR" value="6">
-    </div>
-    <div class="input-group">
-      <label>Rent Year 1 (₹)</label>
-      <input type="number" id="initialRent" value="15000">
-    </div>
-    <div class="input-group">
-      <label>Rent Increase (% per year)</label>
-      <input type="number" id="rentIncrease" value="5">
-    </div>
-    <div class="input-group">
-      <label>SIP per Month (₹)</label>
-      <input type="number" id="sip" readonly>
-    </div>
-    <div class="input-group">
-      <label>Lump Sum Investment (₹)</label>
-      <input type="number" id="lumpsum" readonly>
-    </div>
-    <div class="input-group">
-      <label>Expected CAGR (%)</label>
-      <input type="number" id="cagr" value="15">
-    </div>
-    <div class="input-group">
-      <label>Step-up SIP (% yearly increase)</label>
-      <input type="number" id="stepupSIPPercent" value="0">
-    </div>
+    <div class="input-group"><label>Flat Cost (₹)</label><input type="number" id="flatCost" value="7000000"></div>
+    <div class="input-group"><label>Loan Amount (₹)</label><input type="number" id="loanAmount" value="5000000"></div>
+    <div class="input-group"><label>Loan Tenure (Years)</label><input type="number" id="tenure" value="10"></div>
+    <div class="input-group"><label>Interest Rate (% per annum)</label><input type="number" id="interestRate" value="8"></div>
+    <div class="input-group"><label>Monthly EMI (₹)</label><input type="text" id="emi" readonly></div>
+    <div class="input-group"><label>Total Interest Paid (₹)</label><input type="text" id="interest" readonly></div>
+    <div class="input-group"><label>Future Flat Value CAGR (%)</label><input type="number" id="flatCAGR" value="6"></div>
+    <div class="input-group"><label>Rent Year 1 (₹)</label><input type="number" id="initialRent" value="15000"></div>
+    <div class="input-group"><label>Rent Increase (% per year)</label><input type="number" id="rentIncrease" value="5"></div>
+    <div class="input-group"><label>SIP per Month (₹)</label><input type="number" id="sip" readonly></div>
+    <div class="input-group"><label>Lump Sum Investment (₹)</label><input type="number" id="lumpsum" readonly></div>
+    <div class="input-group"><label>Expected CAGR (%)</label><input type="number" id="cagr" value="15"></div>
+    <div class="input-group"><label>Step-up SIP (% yearly increase)</label><input type="number" id="stepupSIPPercent" value="0"></div>
+    <div class="input-group"><label>Inflation Rate (% per annum)</label><input type="number" id="inflationRate" value="5"></div>
     <button onclick="runAnalysis()">Analyze</button>
   </div>
 
@@ -164,7 +121,6 @@
         const { emi, interest } = calculateEMI(P, rate, tenure);
         document.getElementById('emi').value = Math.round(emi).toLocaleString();
         document.getElementById('interest').value = Math.round(interest).toLocaleString();
-
         updateSIP();
       }
     }
@@ -199,28 +155,33 @@
       const stepup = +document.getElementById('stepupSIPPercent').value;
       const lumpsum = +document.getElementById('lumpsum').value;
       const cagr = +document.getElementById('cagr').value;
+      const inflationRate = +document.getElementById('inflationRate').value;
 
       const { emi, interest } = calculateEMI(loanAmount, rate, tenure);
       const totalEMI = emi * 12 * tenure;
       const own = flatCost - loanAmount;
       const totalBuyOutgo = totalEMI + own;
-      const futureValue = calculateFutureFlatValue(flatCost, flatCAGR, tenure);
-      const netBuyGain = futureValue - totalBuyOutgo;
+
+      const nominalFutureValue = calculateFutureFlatValue(flatCost, flatCAGR, tenure);
+      const realFutureValue = nominalFutureValue / Math.pow(1 + inflationRate / 100, tenure);
+      const netBuyGain = realFutureValue - totalBuyOutgo;
 
       const rentTotal = calculateRentTotal(initialRent, rentIncrease, tenure);
-      const sipFuture = futureValueStepUpSIP(sip, cagr, tenure, stepup);
-      const lumpFuture = lumpsum * Math.pow(1 + cagr / 100, tenure);
-      const totalInvestment = sipFuture + lumpFuture;
+      const sipNominal = futureValueStepUpSIP(sip, cagr, tenure, stepup);
+      const lumpNominal = lumpsum * Math.pow(1 + cagr / 100, tenure);
+      const sipReal = sipNominal / Math.pow(1 + inflationRate / 100, tenure);
+      const lumpReal = lumpNominal / Math.pow(1 + inflationRate / 100, tenure);
+      const totalInvestment = sipReal + lumpReal;
       const netRentGain = totalInvestment - rentTotal;
 
       document.getElementById("result").innerHTML = `
-        <h3>Summary</h3>
+        <h3>Summary (Inflation Adjusted)</h3>
         <p><b>Total Cost (Buy):</b> ₹${totalBuyOutgo.toLocaleString()}</p>
-        <p><b>Flat Value after ${tenure} years:</b> ₹${Math.round(futureValue).toLocaleString()}</p>
+        <p><b>Flat Value (Real) after ${tenure} years:</b> ₹${Math.round(realFutureValue).toLocaleString()}</p>
         <p><b>Net Gain (Buy):</b> ₹${Math.round(netBuyGain).toLocaleString()}</p>
         <hr>
         <p><b>Total Rent Paid:</b> ₹${Math.round(rentTotal).toLocaleString()}</p>
-        <p><b>Investments Value (SIP + Lump Sum):</b> ₹${Math.round(totalInvestment).toLocaleString()}</p>
+        <p><b>Investments Value (Real, SIP + Lump Sum):</b> ₹${Math.round(totalInvestment).toLocaleString()}</p>
         <p><b>Net Gain (Rent + Invest):</b> ₹${Math.round(netRentGain).toLocaleString()}</p>
         <h4 style="color: ${netRentGain > netBuyGain ? 'green' : 'blue'}">
           ${netRentGain > netBuyGain ? 'Renting + Investing is financially better.' : 'Buying is financially better.'}
@@ -232,21 +193,15 @@
         data: {
           labels: ['Net Gain - Buy', 'Net Gain - Rent+Invest'],
           datasets: [{
-            label: '₹ Gain After ' + tenure + ' Years',
+            label: '₹ Real Gain After ' + tenure + ' Years',
             data: [netBuyGain, netRentGain],
             backgroundColor: ['#007bff', '#28a745']
           }]
         },
         options: {
           responsive: true,
-          plugins: {
-            legend: { display: false }
-          },
-          scales: {
-            y: {
-              beginAtZero: true
-            }
-          }
+          plugins: { legend: { display: false }},
+          scales: { y: { beginAtZero: true }}
         }
       });
     }
