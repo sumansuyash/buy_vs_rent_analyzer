@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Buy vs Rent Analyzer (Inflation Adjusted)</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Buy vs Rent Analyzer</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body {
@@ -174,6 +174,11 @@
       const totalInvestment = sipReal + lumpReal;
       const netRentGain = totalInvestment - rentTotal;
 
+      const safeRent = (flatCost * 0.025) / 12;
+      const rentComparisonMsg = initialRent > safeRent
+        ? `<span style="color: green;"><b>Rent is high</b> relative to property value. Buying may be a good option.</span>`
+        : `<span style="color: orange;"><b>Rent is affordable</b> relative to flat price. Renting may be smarter unless long-term stay is certain.</span>`;
+
       document.getElementById("result").innerHTML = `
         <h3>Summary (Inflation Adjusted)</h3>
         <p><b>Total Cost (Buy):</b> ₹${totalBuyOutgo.toLocaleString()}</p>
@@ -183,6 +188,9 @@
         <p><b>Total Rent Paid:</b> ₹${Math.round(rentTotal).toLocaleString()}</p>
         <p><b>Investments Value (Real, SIP + Lump Sum):</b> ₹${Math.round(totalInvestment).toLocaleString()}</p>
         <p><b>Net Gain (Rent + Invest):</b> ₹${Math.round(netRentGain).toLocaleString()}</p>
+        <hr>
+        <p><b>Safe Rent Threshold (2.5% Yield):</b> ₹${Math.round(safeRent).toLocaleString()} / month</p>
+        <p>${rentComparisonMsg}</p>
         <h4 style="color: ${netRentGain > netBuyGain ? 'green' : 'blue'}">
           ${netRentGain > netBuyGain ? 'Renting + Investing is financially better.' : 'Buying is financially better.'}
         </h4>
