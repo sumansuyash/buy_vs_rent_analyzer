@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Buy vs Rent Analyzer</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #f0f2f5;
+      padding: 20px;
+      max-width: 800px;
+      margin: auto;
+    }
+    h1 {
+      text-align: center;
+      color: #333;
+    }
+    .input-group {
+      margin: 10px 0;
+    }
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: 600;
+    }
+    input {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+    button {
+      padding: 10px 20px;
+      margin-top: 15px;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+    .result, .chart-container {
+      background: white;
+      margin-top: 20px;
+      padding: 15px;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    }
+    .toggle-section {
+      margin-top: 10px;
+      color: #007bff;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <h1>Buy vs Rent Analyzer</h1>
+
+  <div id="form-section">
+    <div class="input-group">
+      <label>Flat Cost (₹)</label>
+      <input type="number" id="flatCost" value="7000000">
+    </div>
+    <div class="input-group">
+      <label>Loan Amount (₹)</label>
+      <input type="number" id="loanAmount" value="5000000">
+    </div>
+    <div class="input-group">
+      <label>Loan Tenure (Years)</label>
+      <input type="number" id="tenure" value="10">
+    </div>
+    <div class="input-group">
+      <label>Interest Rate (% per annum)</label>
+      <input type="number" id="interestRate" value="8">
+    </div>
+    <div class="input-group">
+      <label>Monthly EMI (₹)</label>
+      <input type="text" id="emi" readonly>
+    </div>
+    <div class="input-group">
+      <label>Total Interest Paid (₹)</label>
+      <input type="text" id="interest" readonly>
+    </div>
+    <div class="input-group">
+      <label>Future Flat Value CAGR (%)</label>
+      <input type="number" id="flatCAGR" value="6">
+    </div>
+    <div class="input-group">
+      <label>Rent Year 1 (₹)</label>
+      <input type="number" id="initialRent" value="15000">
+    </div>
+    <div class="input-group">
+      <label>Rent Increase (% per year)</label>
+      <input type="number" id="rentIncrease" value="5">
+    </div>
+    <div class="input-group">
+      <label>SIP per Month (₹)</label>
+      <input type="number" id="sip" readonly>
+    </div>
+    <div class="input-group">
+      <label>Lump Sum Investment (₹)</label>
+      <input type="number" id="lumpsum" readonly>
+    </div>
+    <div class="input-group">
+      <label>Expected CAGR (%)</label>
+      <input type="number" id="cagr" value="15">
+    </div>
+    <div class="input-group">
+      <label>Step-up SIP (% yearly increase)</label>
+      <input type="number" id="stepupSIPPercent" value="0">
+    </div>
+    <button onclick="runAnalysis()">Analyze</button>
+  </div>
+
+  <div id="result" class="result"></div>
+
+  <div class="chart-container">
+    <canvas id="comparisonChart" height="100"></canvas>
+  </div>
+
+  <script>
+    function calculateEMI(P, annualRate, tenureYears) {
+      const r = annualRate / 12 / 100;
+      const n = tenureYears * 12;
+      const emi = P * r * Math.pow(1 + r, n) / (Math.pow(1 + r, n) - 1);
+      const totalPayment = emi * n;
+      const interest = totalPayment - P;
+      return { emi, interest };
+    }
+
+    function futureValueStepUpSIP(pmt, rate, years, stepup) {
+      rate = rate / 100;
+      stepup = stepup / 100;
+      let fv = 0;
+      for (let i = 0; i < years; i++) {
+        const yearlySIP = pmt * Math.pow(1 + stepup, i);
+        fv += yearlySIP * 12 * Math.pow(1 + rate, years - i);
+      }
+      return fv;
+    }
+
+    function calculateRentTotal(initialRent, rentIncrease, years) {
+      let total = 0;
+      for (let i = 0; i < years; i++) {
+        total += initialRent * Math.pow(1 + rentIncrease / 100, i) * 12;
+      }
+      return total;
+    }
+
+    function calculateFutureFlatValue(currentValue, cagr, years) {
+      return currentValue * Math.pow(1 + cagr / 100, years);
+    }
+
+    function updateEMI() {
+      const P = +document.getElementById('loanAmount').value;
+      const rate = +document.getElementById('interestRate').value;
+      const tenure = +document.getElementById('tenure').value;
+
+      if (P && rate && tenure) {
+        const { emi, interest } = calculateEMI(P, rate, tenure);
+        document.getElementById('emi').value = Math.round(emi).toLocaleString();
+        document.getElementById('interest').value = Math.round(interest).toLocaleString();
+
+        updateSIP();
+      }
+    }
+
+    function updateSIP() {
+      const emi = +document.getElementById('emi').value.replace(/,/g, '') || 0;
+      const initialRent = +document.getElementById('initialRent').value || 0;
+      const sip = Math.max(emi - initialRent, 0);
+      document.getElementById('sip').value = Math.round(sip);
+
+      const flatCost = +document.getElementById('flatCost').value || 0;
+      const loanAmount = +document.getElementById('loanAmount').value || 0;
+      const lumpsum = flatCost - loanAmount;
+      document.getElementById('lumpsum').value = lumpsum;
+    }
+
+    document.getElementById('loanAmount').addEventListener('input', updateEMI);
+    document.getElementById('interestRate').addEventListener('input', updateEMI);
+    document.getElementById('tenure').addEventListener('input', updateEMI);
+    document.getElementById('initialRent').addEventListener('input', updateSIP);
+    document.getElementById('flatCost').addEventListener('input', updateSIP);
+
+    function runAnalysis() {
+      const flatCost = +document.getElementById('flatCost').value;
+      const loanAmount = +document.getElementById('loanAmount').value;
+      const tenure = +document.getElementById('tenure').value;
+      const rate = +document.getElementById('interestRate').value;
+      const flatCAGR = +document.getElementById('flatCAGR').value;
+      const initialRent = +document.getElementById('initialRent').value;
+      const rentIncrease = +document.getElementById('rentIncrease').value;
+      const sip = +document.getElementById('sip').value;
+      const stepup = +document.getElementById('stepupSIPPercent').value;
+      const lumpsum = +document.getElementById('lumpsum').value;
+      const cagr = +document.getElementById('cagr').value;
+
+      const { emi, interest } = calculateEMI(loanAmount, rate, tenure);
+      const totalEMI = emi * 12 * tenure;
+      const own = flatCost - loanAmount;
+      const totalBuyOutgo = totalEMI + own;
+      const futureValue = calculateFutureFlatValue(flatCost, flatCAGR, tenure);
+      const netBuyGain = futureValue - totalBuyOutgo;
+
+      const rentTotal = calculateRentTotal(initialRent, rentIncrease, tenure);
+      const sipFuture = futureValueStepUpSIP(sip, cagr, tenure, stepup);
+      const lumpFuture = lumpsum * Math.pow(1 + cagr / 100, tenure);
+      const totalInvestment = sipFuture + lumpFuture;
+      const netRentGain = totalInvestment - rentTotal;
+
+      document.getElementById("result").innerHTML = `
+        <h3>Summary</h3>
+        <p><b>Total Cost (Buy):</b> ₹${totalBuyOutgo.toLocaleString()}</p>
+        <p><b>Flat Value after ${tenure} years:</b> ₹${Math.round(futureValue).toLocaleString()}</p>
+        <p><b>Net Gain (Buy):</b> ₹${Math.round(netBuyGain).toLocaleString()}</p>
+        <hr>
+        <p><b>Total Rent Paid:</b> ₹${Math.round(rentTotal).toLocaleString()}</p>
+        <p><b>Investments Value (SIP + Lump Sum):</b> ₹${Math.round(totalInvestment).toLocaleString()}</p>
+        <p><b>Net Gain (Rent + Invest):</b> ₹${Math.round(netRentGain).toLocaleString()}</p>
+        <h4 style="color: ${netRentGain > netBuyGain ? 'green' : 'blue'}">
+          ${netRentGain > netBuyGain ? 'Renting + Investing is financially better.' : 'Buying is financially better.'}
+        </h4>
+      `;
+
+      new Chart(document.getElementById("comparisonChart"), {
+        type: 'bar',
+        data: {
+          labels: ['Net Gain - Buy', 'Net Gain - Rent+Invest'],
+          datasets: [{
+            label: '₹ Gain After ' + tenure + ' Years',
+            data: [netBuyGain, netRentGain],
+            backgroundColor: ['#007bff', '#28a745']
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { display: false }
+          },
+          scales: {
+            y: {
+              beginAtZero: true
+            }
+          }
+        }
+      });
+    }
+
+    updateEMI();
+  </script>
+</body>
+</html>
